@@ -1,8 +1,9 @@
+using LegacyRenewalApp.Models;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 
-namespace LegacyRenewalApp
+namespace LegacyRenewalApp.Repositories
 {
     public class SubscriptionPlanRepository
     {

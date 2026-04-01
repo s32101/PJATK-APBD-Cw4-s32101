@@ -1,6 +1,7 @@
+using LegacyRenewalApp.Models;
 using System;
 
-namespace LegacyRenewalApp
+namespace LegacyRenewalApp.Services
 {
     public class SubscriptionRenewalService
     {
@@ -46,7 +47,7 @@ namespace LegacyRenewalApp
                 throw new InvalidOperationException("Inactive customers cannot renew subscriptions");
             }
 
-            decimal baseAmount = (plan.MonthlyPricePerSeat * seatCount * 12m) + plan.SetupFee;
+            decimal baseAmount = plan.MonthlyPricePerSeat * seatCount * 12m + plan.SetupFee;
             decimal discountAmount = 0m;
             string notes = string.Empty;
 
