@@ -1,5 +1,5 @@
 using System;
-using LegacyRenewalApp;
+using LegacyRenewalApp.Services;
 
 namespace LegacyRenewalAppConsumer
 {
