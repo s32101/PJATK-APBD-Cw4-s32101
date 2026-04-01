@@ -4,7 +4,7 @@ using System;
 
 namespace LegacyRenewalApp.Services
 {
-    public class SubscriptionRenewalService
+    public class SubscriptionRenewalService(CustomerRepository customerRepository, SubscriptionPlanRepository planRepository)
     {
         public RenewalInvoice CreateRenewalInvoice(
             int customerId,
@@ -37,8 +37,8 @@ namespace LegacyRenewalApp.Services
             string normalizedPlanCode = planCode.Trim().ToUpperInvariant();
             string normalizedPaymentMethod = paymentMethod.Trim().ToUpperInvariant();
 
-            var customerRepository = new CustomerRepository();
-            var planRepository = new SubscriptionPlanRepository();
+            customerRepository = new CustomerRepository();
+            planRepository = new SubscriptionPlanRepository();
 
             var customer = customerRepository.GetById(customerId);
             var plan = planRepository.GetByCode(normalizedPlanCode);
