@@ -14,31 +14,14 @@ namespace LegacyRenewalApp.Services
             bool includePremiumSupport,
             bool useLoyaltyPoints)
         {
-            if (customerId <= 0)
-            {
-                throw new ArgumentException("Customer id must be positive");
-            }
-
-            if (string.IsNullOrWhiteSpace(planCode))
-            {
-                throw new ArgumentException("Plan code is required");
-            }
-
-            if (seatCount <= 0)
-            {
-                throw new ArgumentException("Seat count must be positive");
-            }
-
-            if (string.IsNullOrWhiteSpace(paymentMethod))
-            {
-                throw new ArgumentException("Payment method is required");
-            }
+            //  Validation
+            if (customerId <= 0) throw new ArgumentException("Customer id must be positive");
+            if (string.IsNullOrWhiteSpace(planCode)) throw new ArgumentException("Plan code is required");
+            if (seatCount <= 0) throw new ArgumentException("Seat count must be positive");
+            if (string.IsNullOrWhiteSpace(paymentMethod)) throw new ArgumentException("Payment method is required");
 
             string normalizedPlanCode = planCode.Trim().ToUpperInvariant();
             string normalizedPaymentMethod = paymentMethod.Trim().ToUpperInvariant();
-
-            customerRepository = new CustomerRepository();
-            planRepository = new SubscriptionPlanRepository();
 
             var customer = customerRepository.GetById(customerId);
             var plan = planRepository.GetByCode(normalizedPlanCode);
