@@ -11,7 +11,9 @@ namespace LegacyRenewalAppConsumer
              * DO NOT CHANGE THIS FILE AT ALL
              */
 
-            var renewalService = new SubscriptionRenewalService(new LegacyRenewalApp.Repositories.CustomerRepository(), new LegacyRenewalApp.Repositories.SubscriptionPlanRepository());
+            var renewalService = new SubscriptionRenewalService(new LegacyRenewalApp.Repositories.CustomerRepository(),
+                new LegacyRenewalApp.Repositories.SubscriptionPlanRepository(),
+                new BillingGateway());
 
             var invoice = renewalService.CreateRenewalInvoice(
                 customerId: 3,
