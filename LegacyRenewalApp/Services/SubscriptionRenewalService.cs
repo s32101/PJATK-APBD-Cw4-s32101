@@ -7,6 +7,7 @@ namespace LegacyRenewalApp.Services
     public class SubscriptionRenewalService(
         CustomerRepository customerRepository, 
         SubscriptionPlanRepository planRepository,
+        ITaxCalculator taxCalculator,
         ISupportFeeCalculator supportFeeCalculator,
         IPaymentFeeCalculator paymentFeeCalculator,
         IBillingGateway billingGateway)
@@ -112,24 +113,8 @@ namespace LegacyRenewalApp.Services
             var (paymentFee, paymentNote) = paymentFeeCalculator.Calculate(paymentMethod.ToUpperInvariant(),
                 subtotalAfterDiscount + supportFee);
             notes += paymentNote;
-
-            decimal taxRate = 0.20m;
-            if (customer.Country == "Poland")
-            {
-                taxRate = 0.23m;
-            }
-            else if (customer.Country == "Germany")
-            {
-                taxRate = 0.19m;
-            }
-            else if (customer.Country == "Czech Republic")
-            {
-                taxRate = 0.21m;
-            }
-            else if (customer.Country == "Norway")
-            {
-                taxRate = 0.25m;
-            }
+            
+            var taxRate = taxCalculator.GetRate(customer.Country);
 
             decimal taxBase = subtotalAfterDiscount + supportFee + paymentFee;
             decimal taxAmount = taxBase * taxRate;
