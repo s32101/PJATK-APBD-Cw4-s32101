@@ -7,6 +7,7 @@ namespace LegacyRenewalApp.Services
     public class SubscriptionRenewalService(
         CustomerRepository customerRepository, 
         SubscriptionPlanRepository planRepository,
+        ISupportFeeCalculator supportFeeCalculator,
         IPaymentFeeCalculator paymentFeeCalculator,
         IBillingGateway billingGateway)
     {
@@ -101,22 +102,10 @@ namespace LegacyRenewalApp.Services
                 notes += "minimum discounted subtotal applied; ";
             }
 
-            decimal supportFee = 0m;
+            var supportFee = 0m;
             if (includePremiumSupport)
             {
-                if (normalizedPlanCode == "START")
-                {
-                    supportFee = 250m;
-                }
-                else if (normalizedPlanCode == "PRO")
-                {
-                    supportFee = 400m;
-                }
-                else if (normalizedPlanCode == "ENTERPRISE")
-                {
-                    supportFee = 700m;
-                }
-
+                supportFee = supportFeeCalculator.Calculate(normalizedPlanCode);
                 notes += "premium support included; ";
             }
 
