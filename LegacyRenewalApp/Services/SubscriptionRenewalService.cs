@@ -7,6 +7,7 @@ namespace LegacyRenewalApp.Services
     public class SubscriptionRenewalService(
         CustomerRepository customerRepository, 
         SubscriptionPlanRepository planRepository,
+        IPaymentFeeCalculator paymentFeeCalculator,
         IBillingGateway billingGateway)
     {
         public RenewalInvoice CreateRenewalInvoice(
@@ -119,31 +120,9 @@ namespace LegacyRenewalApp.Services
                 notes += "premium support included; ";
             }
 
-            decimal paymentFee = 0m;
-            if (normalizedPaymentMethod == "CARD")
-            {
-                paymentFee = (subtotalAfterDiscount + supportFee) * 0.02m;
-                notes += "card payment fee; ";
-            }
-            else if (normalizedPaymentMethod == "BANK_TRANSFER")
-            {
-                paymentFee = (subtotalAfterDiscount + supportFee) * 0.01m;
-                notes += "bank transfer fee; ";
-            }
-            else if (normalizedPaymentMethod == "PAYPAL")
-            {
-                paymentFee = (subtotalAfterDiscount + supportFee) * 0.035m;
-                notes += "paypal fee; ";
-            }
-            else if (normalizedPaymentMethod == "INVOICE")
-            {
-                paymentFee = 0m;
-                notes += "invoice payment; ";
-            }
-            else
-            {
-                throw new ArgumentException("Unsupported payment method");
-            }
+            var (paymentFee, paymentNote) = paymentFeeCalculator.Calculate(paymentMethod.ToUpperInvariant(),
+                subtotalAfterDiscount + supportFee);
+            notes += paymentNote;
 
             decimal taxRate = 0.20m;
             if (customer.Country == "Poland")
