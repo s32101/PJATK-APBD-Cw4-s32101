@@ -7,6 +7,7 @@ namespace LegacyRenewalApp.Services
     public class SubscriptionRenewalService(
         CustomerRepository customerRepository, 
         SubscriptionPlanRepository planRepository,
+        IDiscountCalculator discountCalculator,
         ITaxCalculator taxCalculator,
         ISupportFeeCalculator supportFeeCalculator,
         IPaymentFeeCalculator paymentFeeCalculator,
@@ -26,83 +27,30 @@ namespace LegacyRenewalApp.Services
             if (seatCount <= 0) throw new ArgumentException("Seat count must be positive");
             if (string.IsNullOrWhiteSpace(paymentMethod)) throw new ArgumentException("Payment method is required");
 
+            //  Input normalization
             string normalizedPlanCode = planCode.Trim().ToUpperInvariant();
             string normalizedPaymentMethod = paymentMethod.Trim().ToUpperInvariant();
 
+            //  Retrieving data from repository
             var customer = customerRepository.GetById(customerId);
             var plan = planRepository.GetByCode(normalizedPlanCode);
 
-            if (!customer.IsActive)
-            {
-                throw new InvalidOperationException("Inactive customers cannot renew subscriptions");
-            }
+            //  Validating retrieved data with context of current operation
+            if (!customer.IsActive) throw new InvalidOperationException("Inactive customers cannot renew subscriptions");
 
-            decimal baseAmount = plan.MonthlyPricePerSeat * seatCount * 12m + plan.SetupFee;
-            decimal discountAmount = 0m;
-            string notes = string.Empty;
+            // Base price + discounts
+            var baseAmount = plan.MonthlyPricePerSeat * seatCount * 12m + plan.SetupFee;
+            var (discountAmount, notes) =
+                discountCalculator.Calculate(customer, plan, seatCount, baseAmount, useLoyaltyPoints);
 
-            if (customer.Segment == "Silver")
-            {
-                discountAmount += baseAmount * 0.05m;
-                notes += "silver discount; ";
-            }
-            else if (customer.Segment == "Gold")
-            {
-                discountAmount += baseAmount * 0.10m;
-                notes += "gold discount; ";
-            }
-            else if (customer.Segment == "Platinum")
-            {
-                discountAmount += baseAmount * 0.15m;
-                notes += "platinum discount; ";
-            }
-            else if (customer.Segment == "Education" && plan.IsEducationEligible)
-            {
-                discountAmount += baseAmount * 0.20m;
-                notes += "education discount; ";
-            }
-
-            if (customer.YearsWithCompany >= 5)
-            {
-                discountAmount += baseAmount * 0.07m;
-                notes += "long-term loyalty discount; ";
-            }
-            else if (customer.YearsWithCompany >= 2)
-            {
-                discountAmount += baseAmount * 0.03m;
-                notes += "basic loyalty discount; ";
-            }
-
-            if (seatCount >= 50)
-            {
-                discountAmount += baseAmount * 0.12m;
-                notes += "large team discount; ";
-            }
-            else if (seatCount >= 20)
-            {
-                discountAmount += baseAmount * 0.08m;
-                notes += "medium team discount; ";
-            }
-            else if (seatCount >= 10)
-            {
-                discountAmount += baseAmount * 0.04m;
-                notes += "small team discount; ";
-            }
-
-            if (useLoyaltyPoints && customer.LoyaltyPoints > 0)
-            {
-                int pointsToUse = customer.LoyaltyPoints > 200 ? 200 : customer.LoyaltyPoints;
-                discountAmount += pointsToUse;
-                notes += $"loyalty points used: {pointsToUse}; ";
-            }
-
-            decimal subtotalAfterDiscount = baseAmount - discountAmount;
+            var subtotalAfterDiscount = baseAmount - discountAmount;
             if (subtotalAfterDiscount < 300m)
             {
                 subtotalAfterDiscount = 300m;
                 notes += "minimum discounted subtotal applied; ";
             }
 
+            //  Support fee
             var supportFee = 0m;
             if (includePremiumSupport)
             {
@@ -110,22 +58,25 @@ namespace LegacyRenewalApp.Services
                 notes += "premium support included; ";
             }
 
+            //  Payment method fee
             var (paymentFee, paymentNote) = paymentFeeCalculator.Calculate(paymentMethod.ToUpperInvariant(),
                 subtotalAfterDiscount + supportFee);
             notes += paymentNote;
             
+            //  Tax calc
             var taxRate = taxCalculator.GetRate(customer.Country);
-
             decimal taxBase = subtotalAfterDiscount + supportFee + paymentFee;
             decimal taxAmount = taxBase * taxRate;
             decimal finalAmount = taxBase + taxAmount;
 
+            //  Making sure that we will get enough money for our boss so that he can have fun
             if (finalAmount < 500m)
             {
                 finalAmount = 500m;
                 notes += "minimum invoice amount applied; ";
             }
 
+            //  Create and store - we are very cl,ose to the end
             var invoice = new RenewalInvoice
             {
                 InvoiceNumber = $"INV-{DateTime.UtcNow:yyyyMMdd}-{customerId}-{normalizedPlanCode}",
@@ -142,9 +93,9 @@ namespace LegacyRenewalApp.Services
                 Notes = notes.Trim(),
                 GeneratedAt = DateTime.UtcNow
             };
-
             billingGateway.SaveInvoice(invoice);
 
+            //  Send invoice
             if (!string.IsNullOrWhiteSpace(customer.Email))
             {
                 string subject = "Subscription renewal invoice";
@@ -155,6 +106,7 @@ namespace LegacyRenewalApp.Services
                 billingGateway.SendEmail(customer.Email, subject, body);
             }
 
+            //  Done
             return invoice;
         }
     }
